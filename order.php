@@ -95,18 +95,48 @@ try {
     $order_number = 'ORD-' . str_pad($next_id, 6, '0', STR_PAD_LEFT);
 
     // Insert order
+    // $stmt = $conn->prepare("
+    //     INSERT INTO orders (
+    //         user_id, order_number, customer_name, customer_email, customer_phone,
+    //         billing_address, shipping_address, subtotal, total_amount,
+    //         payment_method, customer_notes, status, payment_status
+    //     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending')
+    // ");
+    // $stmt->bind_param(
+    //     "isssssssdds",
+    //     $user_id, $order_number, $customer_name, $customer_email, $customer_phone,
+    //     $billing_address, $shipping_address, $total, $total,
+    //     $payment_method, $notes
+    // );
+    // $stmt->execute();
+    // $order_id = $stmt->insert_id;
+    // $stmt->close();
+
+    // ---------- INSERT ORDER WITH PAYMENT METHOD ----------
+    // ---------- INSERT ORDER WITH PAYMENT METHOD ----------
+    $payment_status = 'pending'; // ✅ store literal in variable
+
     $stmt = $conn->prepare("
         INSERT INTO orders (
             user_id, order_number, customer_name, customer_email, customer_phone,
             billing_address, shipping_address, subtotal, total_amount,
-            payment_method, customer_notes, status, payment_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending')
+            payment_method, payment_status, customer_notes, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     ");
     $stmt->bind_param(
-        "isssssssdds",
-        $user_id, $order_number, $customer_name, $customer_email, $customer_phone,
-        $billing_address, $shipping_address, $total, $total,
-        $payment_method, $notes
+        "isssssssdsss", // 12 types: i, s x8, d x2, s x2 = total 12
+        $user_id,
+        $order_number,
+        $customer_name,
+        $customer_email,
+        $customer_phone,
+        $billing_address,
+        $shipping_address,
+        $total,         // subtotal
+        $total,         // total_amount
+        $payment_method,
+        $payment_status, // ✅ now a variable, not a literal
+        $notes
     );
     $stmt->execute();
     $order_id = $stmt->insert_id;
@@ -170,10 +200,10 @@ try {
     $message .= "━━━━━━━━━━━━━━━\n";
     $message .= "*Items:*\n";
     foreach ($cart_items as $item) {
-        $message .= "• {$item['name']} × {$item['quantity']} = ৳" . number_format($item['subtotal'], 2) . "\n";
+        $message .= "• {$item['name']} × {$item['quantity']} = $" . number_format($item['subtotal'], 2) . "\n";
     }
     $message .= "━━━━━━━━━━━━━━━\n";
-    $message .= "💰 *TOTAL:* ৳" . number_format($total, 2);
+    $message .= "💰 *TOTAL:* $" . number_format($total, 2);
 
     // Send via cURL
     $ch = curl_init();

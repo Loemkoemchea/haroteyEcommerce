@@ -2,7 +2,9 @@
 // file: user/dashboard.php
 require_once 'auth_check.php';
 
-// Get order statistics
+// =============================================
+// FETCH USER STATISTICS (same as before)
+// =============================================
 $stats = [];
 
 // Total orders
@@ -24,30 +26,17 @@ $result->execute();
 $stats['pending_orders'] = $result->get_result()->fetch_assoc()['count'];
 
 // Wishlist count
-// ✅ Correct table name (plural) – count wishlist items
-// $result = $conn->prepare("
-//     SELECT COUNT(*) as count 
-//     FROM wishlist_items wi
-//     JOIN wishlists w ON wi.wishlist_id = w.id
-//     WHERE w.user_id = ?
-// ");
-// Get wishlist count (number of items in default wishlist)
-$wishlist_count = 0;
-$stmt = $conn->prepare("
+$result = $conn->prepare("
     SELECT COUNT(*) as count 
     FROM wishlist_items wi 
     JOIN wishlists w ON wi.wishlist_id = w.id 
-    WHERE w.user_id = ? AND w.name = 'Default Wishlist'
+    WHERE w.user_id = ?
 ");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$stats['wishlist_count'] = $stmt->get_result()->fetch_assoc()['count'] ?? 0;
-$stmt->close();
 $result->bind_param("i", $user_id);
 $result->execute();
-$stats['wishlist_count'] = $result->get_result()->fetch_assoc()['count'];
+$stats['wishlist_count'] = $result->get_result()->fetch_assoc()['count'] ?? 0;
 
-// Get recent orders
+// Recent orders
 $recent_orders = $conn->prepare("
     SELECT * FROM orders 
     WHERE user_id = ? 
@@ -58,8 +47,8 @@ $recent_orders->bind_param("i", $user_id);
 $recent_orders->execute();
 $recent_orders = $recent_orders->get_result();
 
-// Get recommended products (based on past orders)
-$recommended = $conn->prepare("
+// Recommended products
+$recommended_products = $conn->prepare("
     SELECT p.*, COUNT(oi.product_id) as purchase_count 
     FROM products p
     JOIN order_items oi ON p.id = oi.product_id
@@ -69,9 +58,16 @@ $recommended = $conn->prepare("
     ORDER BY purchase_count DESC
     LIMIT 4
 ");
-$recommended->bind_param("i", $user_id);
-$recommended->execute();
-$recommended_products = $recommended->get_result();
+$recommended_products->bind_param("i", $user_id);
+$recommended_products->execute();
+$recommended_products = $recommended_products->get_result();
+
+// =============================================
+// PROFILE IMAGE HANDLING
+// =============================================
+$profile_image = $user['profile_image'] ?? 'default-avatar.png';
+$avatar_src = '../' . $profile_image; // ✅ path from /user/ subfolder
+$avatar_initial = strtoupper(substr($user['full_name'] ?? $user['username'], 0, 1));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -106,18 +102,26 @@ $recommended_products = $recommended->get_result();
             margin-bottom: 20px;
         }
         
+        /* ✅ Updated avatar styles */
         .user-avatar {
             width: 100px;
             height: 100px;
-            background: linear-gradient(45deg, #28a745, #20c997);
             border-radius: 50%;
             margin: 0 auto 15px;
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
+            background: #28a745;
             color: white;
             font-size: 40px;
             font-weight: bold;
+            border: 3px solid #28a745;
+        }
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         
         .user-name {
@@ -389,12 +393,18 @@ $recommended_products = $recommended->get_result();
 </head>
 <body>
     <div class="dashboard-container">
-        <!-- Sidebar -->
+        <!-- SIDEBAR with Profile Image -->
         <div class="sidebar">
             <div class="user-info">
-                <div class="user-avatar">
-                    <?= strtoupper(substr($user['full_name'] ?: $user['username'], 0, 1)) ?>
-                </div>
+                <?php if ($profile_image !== 'default-avatar.png' && file_exists($avatar_src)): ?>
+                    <div class="user-avatar">
+                        <img src="<?= htmlspecialchars($avatar_src) ?>" alt="<?= htmlspecialchars($user['username']) ?>">
+                    </div>
+                <?php else: ?>
+                    <div class="user-avatar">
+                        <?= $avatar_initial ?>
+                    </div>
+                <?php endif; ?>
                 <div class="user-name"><?= htmlspecialchars($user['full_name'] ?: $user['username']) ?></div>
                 <div class="user-email"><?= htmlspecialchars($user['email']) ?></div>
                 <div class="user-join">
@@ -437,17 +447,6 @@ $recommended_products = $recommended->get_result();
                 <li>
                     <a href="my_reviews.php">
                         <i>⭐</i> My Reviews
-                        <?php
-                        // Optional: count pending reviews
-                        $review_count = $conn->prepare("SELECT COUNT(*) FROM product_reviews WHERE user_id = ?");
-                        $review_count->bind_param("i", $user_id);
-                        $review_count->execute();
-                        $review_count->bind_result($total_reviews);
-                        $review_count->fetch();
-                        $review_count->close();
-                        if ($total_reviews > 0): ?>
-                            <span class="badge"><?= $total_reviews ?></span>
-                        <?php endif; ?>
                     </a>
                 </li>
                 <li style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;">
@@ -463,7 +462,7 @@ $recommended_products = $recommended->get_result();
             </ul>
         </div>
         
-        <!-- Main Content -->
+        <!-- MAIN CONTENT -->
         <div class="main-content">
             <div class="welcome-section">
                 <div class="welcome-title">
@@ -482,7 +481,7 @@ $recommended_products = $recommended->get_result();
                 </div>
                 <div class="stat-card">
                     <h3>Total Spent</h3>
-                    <div class="stat-number">$<?= number_format($stats['total_spent'], 2) ?></div>
+                    <div class="stat-number">৳<?= number_format($stats['total_spent'], 2) ?></div>
                     <div class="stat-label">Lifetime purchase</div>
                 </div>
                 <div class="stat-card">
@@ -523,7 +522,7 @@ $recommended_products = $recommended->get_result();
                                 <tr>
                                     <td>#<?= $order['id'] ?></td>
                                     <td><?= date('M d, Y', strtotime($order['created_at'])) ?></td>
-                                    <td><strong>$<?= number_format($order['total_amount'], 2) ?></strong></td>
+                                    <td><strong>৳<?= number_format($order['total_amount'], 2) ?></strong></td>
                                     <td>
                                         <span class="status-badge status-<?= $order['status'] ?>">
                                             <?= ucfirst($order['status']) ?>
@@ -563,7 +562,7 @@ $recommended_products = $recommended->get_result();
                         <?php while ($product = $recommended_products->fetch_assoc()): ?>
                             <div class="product-card">
                                 <div class="product-title"><?= htmlspecialchars($product['name']) ?></div>
-                                <div class="product-price">$<?= number_format($product['price'], 2) ?></div>
+                                <div class="product-price">৳<?= number_format($product['price'], 2) ?></div>
                                 <a href="../cart.php?add=<?= $product['id'] ?>" class="btn-add">Add to Cart</a>
                             </div>
                         <?php endwhile; ?>

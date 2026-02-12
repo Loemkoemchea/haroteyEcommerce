@@ -424,21 +424,19 @@ foreach ($_SESSION['cart'] as $pid => $qty) {
                 <div class="form-section">
                     <h2>💳 Payment Method</h2>
                     <div class="payment-options">
-                        <label class="payment-option <?= (!isset($_POST['payment_method']) || $_POST['payment_method'] == 'cash_on_delivery') ? 'selected' : '' ?>">
-                            <input type="radio" name="payment_method" value="cash_on_delivery" checked>
-                            <span style="font-weight: 600;">Cash on Delivery</span>
-                            <span style="margin-left: auto; color: #666; font-size: 14px;">Pay when you receive</span>
-                        </label>
                         <label class="payment-option">
-                            <input type="radio" name="payment_method" value="bkash">
-                            <span style="font-weight: 600;">bKash</span>
-                            <span style="margin-left: auto; color: #666; font-size: 14px;">Send money</span>
-                        </label>
-                        <label class="payment-option">
-                            <input type="radio" name="payment_method" value="nagad">
-                            <span style="font-weight: 600;">Nagad</span>
-                            <span style="margin-left: auto; color: #666; font-size: 14px;">Send money</span>
-                        </label>
+                        <input type="radio" name="payment_method" value="cash_on_delivery" checked>
+                        Cash on Delivery
+                    </label>
+                    <label class="payment-option">
+                        <input type="radio" name="payment_method" value="bkash">
+                        bKash
+                    </label>
+                    <label class="payment-option">
+                        <input type="radio" name="payment_method" value="nagad">
+                        Nagad
+                    </label>
+                        
                     </div>
                 </div>
 
@@ -467,13 +465,13 @@ foreach ($_SESSION['cart'] as $pid => $qty) {
                             <span class="item-name"><?= htmlspecialchars($item['name']) ?></span>
                             <span class="item-quantity"> × <?= $item['quantity'] ?></span>
                         </div>
-                        <span class="item-price">৳<?= number_format($item['subtotal'], 2) ?></span>
+                        <span class="item-price">$<?= number_format($item['subtotal'], 2) ?></span>
                     </div>
                 <?php endforeach; ?>
             </div>
             <div class="total-row">
                 <span>Total</span>
-                <span class="total-amount">৳<?= number_format($total, 2) ?></span>
+                <span class="total-amount">$<?= number_format($total, 2) ?></span>
             </div>
             <div class="secure-badge">
                 <span>🔒</span> Secure checkout · SSL encrypted

@@ -1,11 +1,11 @@
 <?php
 // file: admin/dashboard.php
-require_once 'auth_check.php';
+require_once 'auth_check.php';  // ✅ this already includes db.php and checks admin role
 
 // Get statistics
-$total_products = $conn->query("SELECT COUNT(*) as count FROM products")->fetch_assoc()['count'];
-$total_orders = $conn->query("SELECT COUNT(*) as count FROM orders")->fetch_assoc()['count'];
-$total_customers = $conn->query("SELECT COUNT(DISTINCT customer_email) as count FROM orders")->fetch_assoc()['count'];
+$total_products = $conn->query("SELECT COUNT(*) as count FROM products")->fetch_assoc()['count'] ?? 0;
+$total_orders = $conn->query("SELECT COUNT(*) as count FROM orders")->fetch_assoc()['count'] ?? 0;
+$total_customers = $conn->query("SELECT COUNT(DISTINCT customer_email) as count FROM orders")->fetch_assoc()['count'] ?? 0;
 $total_revenue = $conn->query("SELECT SUM(total_amount) as total FROM orders WHERE status != 'cancelled'")->fetch_assoc()['total'] ?? 0;
 
 // Get recent orders
@@ -15,18 +15,18 @@ $recent_orders = $conn->query("
     LIMIT 5
 ");
 
-// Get low stock products (stock < 5)
+// Get low stock products (stock_quantity < 5 AND > 0)
 $low_stock = $conn->query("
     SELECT * FROM products 
-    WHERE stock < 5 AND stock > 0 
-    ORDER BY stock ASC 
+    WHERE stock_quantity < 5 AND stock_quantity > 0 
+    ORDER BY stock_quantity ASC 
     LIMIT 5
 ");
 
 // Get out of stock products
 $out_of_stock = $conn->query("
     SELECT * FROM products 
-    WHERE stock = 0 
+    WHERE stock_quantity = 0 
     LIMIT 5
 ");
 ?>
@@ -38,79 +38,21 @@ $out_of_stock = $conn->query("
     <title>Dashboard - Harotey Admin</title>
     <link rel="stylesheet" href="../assets/style.css">
     <style>
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            border-left: 4px solid #28a745;
-        }
-        .stat-card h3 {
-            margin: 0 0 10px 0;
-            color: #666;
-            font-size: 14px;
-            text-transform: uppercase;
-        }
-        .stat-number {
-            font-size: 32px;
-            font-weight: bold;
-            color: #333;
-        }
-        .stat-desc {
-            color: #666;
-            font-size: 12px;
-            margin-top: 5px;
-        }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-left: 4px solid #28a745; }
+        .stat-card h3 { margin: 0 0 10px 0; color: #666; font-size: 14px; text-transform: uppercase; }
+        .stat-number { font-size: 32px; font-weight: bold; color: #333; }
+        .stat-desc { color: #666; font-size: 12px; margin-top: 5px; }
         .warning { color: #dc3545; }
         .warning-border { border-left-color: #dc3545; }
         .warning-text { color: #856404; background-color: #fff3cd; padding: 10px; border-radius: 4px; }
-        .admin-nav {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-        .admin-nav a {
-            padding: 8px 16px;
-            text-decoration: none;
-            color: #495057;
-            border-radius: 4px;
-        }
-        .admin-nav a:hover {
-            background: #e9ecef;
-        }
-        .admin-nav a.active {
-            background: #28a745;
-            color: white;
-        }
-        .section {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .section h2 {
-            margin-top: 0;
-            font-size: 18px;
-            border-bottom: 2px solid #f0f0f0;
-            padding-bottom: 10px;
-        }
-        .badge {
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }
+        .admin-nav { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; }
+        .admin-nav a { padding: 8px 16px; text-decoration: none; color: #495057; border-radius: 4px; }
+        .admin-nav a:hover { background: #e9ecef; }
+        .admin-nav a.active { background: #28a745; color: white; }
+        .section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .section h2 { margin-top: 0; font-size: 18px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
+        .badge { padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
         .badge-pending { background: #ffc107; color: #856404; }
         .badge-processing { background: #17a2b8; color: white; }
         .badge-completed { background: #28a745; color: white; }
@@ -122,7 +64,7 @@ $out_of_stock = $conn->query("
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
             <h1>🛍️ Harotey Admin Panel</h1>
             <div>
-                <span style="margin-right: 15px;">Welcome, <?= htmlspecialchars($_SESSION['admin_username'] ?? 'Admin') ?>!</span>
+                <span style="margin-right: 15px;">Welcome, <?= htmlspecialchars($_SESSION['admin_username'] ?? $_SESSION['username'] ?? 'Admin') ?>!</span>
                 <a href="logout.php" class="btn" style="background: #dc3545;">Logout</a>
             </div>
         </div>
@@ -164,7 +106,7 @@ $out_of_stock = $conn->query("
             <!-- Recent Orders -->
             <div class="section">
                 <h2>📦 Recent Orders</h2>
-                <?php if ($recent_orders->num_rows > 0): ?>
+                <?php if ($recent_orders && $recent_orders->num_rows > 0): ?>
                     <table style="width: 100%;">
                         <thead>
                             <tr>
@@ -201,11 +143,11 @@ $out_of_stock = $conn->query("
                 <?php endif; ?>
             </div>
 
-            <!-- Low Stock Alerts -->
+            <!-- Stock Alerts -->
             <div class="section">
                 <h2>⚠️ Stock Alerts</h2>
                 
-                <?php if ($low_stock->num_rows > 0): ?>
+                <?php if ($low_stock && $low_stock->num_rows > 0): ?>
                     <h3 style="font-size: 16px; color: #856404;">Low Stock (Less than 5)</h3>
                     <table style="width: 100%; margin-bottom: 20px;">
                         <thead>
@@ -219,7 +161,7 @@ $out_of_stock = $conn->query("
                             <?php while ($product = $low_stock->fetch_assoc()): ?>
                                 <tr>
                                     <td><?= htmlspecialchars($product['name']) ?></td>
-                                    <td style="color: #856404; font-weight: bold;"><?= $product['stock'] ?></td>
+                                    <td style="color: #856404; font-weight: bold;"><?= $product['stock_quantity'] ?></td>
                                     <td>
                                         <a href="edit_product.php?id=<?= $product['id'] ?>" style="color: #007bff;">Restock</a>
                                     </td>
@@ -229,7 +171,7 @@ $out_of_stock = $conn->query("
                     </table>
                 <?php endif; ?>
 
-                <?php if ($out_of_stock->num_rows > 0): ?>
+                <?php if ($out_of_stock && $out_of_stock->num_rows > 0): ?>
                     <h3 style="font-size: 16px; color: #dc3545;">Out of Stock</h3>
                     <table style="width: 100%;">
                         <thead>
@@ -253,7 +195,7 @@ $out_of_stock = $conn->query("
                     </table>
                 <?php endif; ?>
 
-                <?php if ($low_stock->num_rows == 0 && $out_of_stock->num_rows == 0): ?>
+                <?php if ((!$low_stock || $low_stock->num_rows == 0) && (!$out_of_stock || $out_of_stock->num_rows == 0)): ?>
                     <p style="color: #28a745;">✓ All products have sufficient stock</p>
                 <?php endif; ?>
             </div>

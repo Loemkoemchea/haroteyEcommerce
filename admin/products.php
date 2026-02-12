@@ -14,7 +14,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
             $conn->query("DELETE FROM products WHERE id IN ($ids)");
             $_SESSION['message'] = "Selected products deleted successfully.";
         } elseif ($action === 'stock_in') {
-            // Redirect to bulk stock update page
             $_SESSION['bulk_ids'] = $selected;
             header("Location: edit_product.php?bulk=1");
             exit;
@@ -24,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bulk_action'])) {
 
 // Get filter and search
 $search = $_GET['search'] ?? '';
-$stock_filter = $_GET['stock'] ?? '';
+$stock_filter = $_GET['stock_filter'] ?? '';  // ✅ renamed to avoid confusion
 $sort = $_GET['sort'] ?? 'id_desc';
 
 // Build query
@@ -35,12 +34,13 @@ if (!empty($search)) {
     $query .= " AND (name LIKE '%$search%' OR description LIKE '%$search%')";
 }
 
+// ✅ Use stock_quantity for filtering
 if ($stock_filter === 'low') {
-    $query .= " AND stock < 5 AND stock > 0";
+    $query .= " AND stock_quantity < 5 AND stock_quantity > 0";
 } elseif ($stock_filter === 'out') {
-    $query .= " AND stock = 0";
+    $query .= " AND stock_quantity = 0";
 } elseif ($stock_filter === 'in') {
-    $query .= " AND stock > 0";
+    $query .= " AND stock_quantity > 0";
 }
 
 switch ($sort) {
@@ -49,13 +49,13 @@ switch ($sort) {
     case 'name_desc': $query .= " ORDER BY name DESC"; break;
     case 'price_asc': $query .= " ORDER BY price ASC"; break;
     case 'price_desc': $query .= " ORDER BY price DESC"; break;
-    case 'stock_asc': $query .= " ORDER BY stock ASC"; break;
-    case 'stock_desc': $query .= " ORDER BY stock DESC"; break;
+    case 'stock_asc': $query .= " ORDER BY stock_quantity ASC"; break;
+    case 'stock_desc': $query .= " ORDER BY stock_quantity DESC"; break;
     default: $query .= " ORDER BY id DESC";
 }
 
 $products = $conn->query($query);
-$product_count = $products->num_rows;
+$product_count = $products ? $products->num_rows : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -65,63 +65,19 @@ $product_count = $products->num_rows;
     <title>Manage Products - Harotey Admin</title>
     <link rel="stylesheet" href="../assets/style.css">
     <style>
-        .filters {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
-        .search-box {
-            flex: 1;
-            min-width: 200px;
-        }
-        .stock-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
-        }
+        .filters { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+        .search-box { flex: 1; min-width: 200px; }
+        .stock-badge { display: inline-block; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
         .stock-high { background: #d4edda; color: #155724; }
         .stock-low { background: #fff3cd; color: #856404; }
         .stock-out { background: #f8d7da; color: #721c24; }
-        .message {
-            padding: 15px;
-            background: #d4edda;
-            color: #155724;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-        .bulk-actions {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 15px;
-            display: none;
-        }
-        .bulk-actions.show {
-            display: block;
-        }
-        .product-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        .product-table th {
-            background: #f2f2f2;
-            padding: 12px;
-            text-align: left;
-        }
-        .product-table td {
-            padding: 12px;
-            border-bottom: 1px solid #dee2e6;
-        }
-        .product-table tr:hover {
-            background: #f8f9fa;
-        }
+        .message { padding: 15px; background: #d4edda; color: #155724; border-radius: 4px; margin-bottom: 20px; }
+        .bulk-actions { background: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 15px; display: none; }
+        .bulk-actions.show { display: block; }
+        .product-table { width: 100%; border-collapse: collapse; }
+        .product-table th { background: #f2f2f2; padding: 12px; text-align: left; }
+        .product-table td { padding: 12px; border-bottom: 1px solid #dee2e6; }
+        .product-table tr:hover { background: #f8f9fa; }
     </style>
 </head>
 <body>
@@ -136,8 +92,7 @@ $product_count = $products->num_rows;
 
         <?php if (isset($_SESSION['message'])): ?>
             <div class="message">
-                <?= $_SESSION['message'] ?>
-                <?php unset($_SESSION['message']); ?>
+                <?= $_SESSION['message']; unset($_SESSION['message']); ?>
             </div>
         <?php endif; ?>
 
@@ -149,7 +104,7 @@ $product_count = $products->num_rows;
                            value="<?= htmlspecialchars($search) ?>" style="width: 100%;">
                 </div>
                 
-                <select name="stock">
+                <select name="stock_filter">
                     <option value="">All Stock Status</option>
                     <option value="in" <?= $stock_filter === 'in' ? 'selected' : '' ?>>In Stock</option>
                     <option value="low" <?= $stock_filter === 'low' ? 'selected' : '' ?>>Low Stock (<5)</option>
@@ -187,7 +142,7 @@ $product_count = $products->num_rows;
 
             <p style="margin-bottom: 15px;">Total Products: <strong><?= $product_count ?></strong></p>
 
-            <?php if ($products->num_rows > 0): ?>
+            <?php if ($products && $products->num_rows > 0): ?>
                 <table class="product-table">
                     <thead>
                         <tr>
@@ -215,15 +170,17 @@ $product_count = $products->num_rows;
                                     <strong><?= htmlspecialchars($product['name']) ?></strong>
                                 </td>
                                 <td>
-                                    <?= htmlspecialchars(substr($product['description'], 0, 50)) ?>
-                                    <?= strlen($product['description']) > 50 ? '...' : '' ?>
+                                    <?= htmlspecialchars(substr($product['description'] ?? '', 0, 50)) ?>
+                                    <?= isset($product['description']) && strlen($product['description']) > 50 ? '...' : '' ?>
                                 </td>
                                 <td><strong>$<?= number_format($product['price'], 2) ?></strong></td>
                                 <td>
-                                    <?php if ($product['stock'] >= 10): ?>
-                                        <span class="stock-badge stock-high"><?= $product['stock'] ?> in stock</span>
-                                    <?php elseif ($product['stock'] > 0): ?>
-                                        <span class="stock-badge stock-low"><?= $product['stock'] ?> low stock</span>
+                                    <?php 
+                                    $stock = $product['stock_quantity'] ?? 0; // ✅ use stock_quantity
+                                    if ($stock >= 10): ?>
+                                        <span class="stock-badge stock-high"><?= $stock ?> in stock</span>
+                                    <?php elseif ($stock > 0): ?>
+                                        <span class="stock-badge stock-low"><?= $stock ?> low stock</span>
                                     <?php else: ?>
                                         <span class="stock-badge stock-out">Out of stock</span>
                                     <?php endif; ?>
@@ -253,7 +210,6 @@ $product_count = $products->num_rows;
     </div>
 
     <script>
-        // Select All functionality
         function toggleAll(source) {
             const checkboxes = document.getElementsByClassName('product-checkbox');
             for (let i = 0; i < checkboxes.length; i++) {
@@ -261,18 +217,14 @@ $product_count = $products->num_rows;
             }
             updateSelection();
         }
-
-        // Update selection count and show/hide bulk actions
         function updateSelection() {
             const checkboxes = document.getElementsByClassName('product-checkbox');
             let count = 0;
             for (let i = 0; i < checkboxes.length; i++) {
                 if (checkboxes[i].checked) count++;
             }
-            
             document.getElementById('selectedCount').textContent = count;
             const bulkActions = document.getElementById('bulkActions');
-            
             if (count > 0) {
                 bulkActions.classList.add('show');
             } else {
@@ -280,8 +232,6 @@ $product_count = $products->num_rows;
                 document.getElementById('selectAll').checked = false;
             }
         }
-
-        // Clear selection
         function clearSelection() {
             const checkboxes = document.getElementsByClassName('product-checkbox');
             for (let i = 0; i < checkboxes.length; i++) {
@@ -289,11 +239,7 @@ $product_count = $products->num_rows;
             }
             updateSelection();
         }
-
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            updateSelection();
-        });
+        document.addEventListener('DOMContentLoaded', updateSelection);
     </script>
 </body>
 </html>

@@ -2,7 +2,9 @@
 // file: admin/edit_product.php
 require_once 'auth_check.php';
 
-// Check if editing single product or bulk
+// =============================================
+// 1. DETERMINE MODE: SINGLE EDIT OR BULK UPDATE
+// =============================================
 $is_bulk = isset($_GET['bulk']) && $_GET['bulk'] == 1;
 $product_ids = [];
 
@@ -14,10 +16,10 @@ if ($is_bulk) {
         exit;
     }
     $ids_string = implode(',', array_map('intval', $product_ids));
-    $products = $conn->query("SELECT * FROM products WHERE id IN ($ids_string) ORDER BY id");
+    $products = $conn->query("SELECT id, name, stock_quantity FROM products WHERE id IN ($ids_string) ORDER BY id");
 } else {
     // Single product edit
-    $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
     if (!$id) {
         header("Location: products.php");
         exit;
@@ -26,7 +28,8 @@ if ($is_bulk) {
     $stmt->bind_param("i", $id);
     $stmt->execute();
     $product = $stmt->get_result()->fetch_assoc();
-    
+    $stmt->close();
+
     if (!$product) {
         $_SESSION['error'] = "Product not found";
         header("Location: products.php");
@@ -37,46 +40,52 @@ if ($is_bulk) {
 $message = '';
 $error = '';
 
+// =============================================
+// 2. HANDLE FORM SUBMISSION
+// =============================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($is_bulk) {
-        // Bulk stock update
-        $stock_values = $_POST['stock'] ?? [];
+        // ---------- BULK STOCK UPDATE ----------
+        $stock_values = $_POST['stock_quantity'] ?? []; // ✅ use stock_quantity
         $success_count = 0;
-        
-        foreach ($stock_values as $pid => $stock) {
-            $pid = intval($pid);
-            $stock = intval($stock);
-            if ($stock >= 0) {
-                $stmt = $conn->prepare("UPDATE products SET stock = ? WHERE id = ?");
-                $stmt->bind_param("ii", $stock, $pid);
+
+        foreach ($stock_values as $pid => $stock_qty) {
+            $pid = (int)$pid;
+            $stock_qty = (int)$stock_qty;
+            if ($stock_qty >= 0) {
+                $stmt = $conn->prepare("UPDATE products SET stock_quantity = ? WHERE id = ?");
+                $stmt->bind_param("ii", $stock_qty, $pid);
                 if ($stmt->execute()) {
                     $success_count++;
                 }
+                $stmt->close();
             }
         }
-        
+
         $_SESSION['message'] = "$success_count products updated successfully!";
         unset($_SESSION['bulk_ids']);
         header("Location: products.php");
         exit;
-        
     } else {
-        // Single product update
-        $id = intval($_POST['product_id']);
-        $name = trim($_POST['name']);
-        $description = trim($_POST['description']);
-        $price = floatval($_POST['price']);
-        $stock = intval($_POST['stock']);
+        // ---------- SINGLE PRODUCT UPDATE ----------
+        $id = (int)$_POST['product_id'];
+        $name = trim($_POST['name'] ?? '');
+        $description = trim($_POST['description'] ?? '');
+        $price = (float)($_POST['price'] ?? 0);
+        $stock_quantity = (int)($_POST['stock_quantity'] ?? 0); // ✅ use stock_quantity
 
         $errors = [];
         if (empty($name)) $errors[] = "Product name is required";
         if ($price <= 0) $errors[] = "Price must be greater than 0";
-        if ($stock < 0) $errors[] = "Stock cannot be negative";
+        if ($stock_quantity < 0) $errors[] = "Stock cannot be negative";
 
         if (empty($errors)) {
-            $stmt = $conn->prepare("UPDATE products SET name = ?, description = ?, price = ?, stock = ? WHERE id = ?");
-            $stmt->bind_param("ssdii", $name, $description, $price, $stock, $id);
-            
+            $stmt = $conn->prepare("
+                UPDATE products 
+                SET name = ?, description = ?, price = ?, stock_quantity = ? 
+                WHERE id = ?
+            ");
+            $stmt->bind_param("ssdii", $name, $description, $price, $stock_quantity, $id);
             if ($stmt->execute()) {
                 $_SESSION['message'] = "Product updated successfully!";
                 header("Location: products.php");
@@ -84,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $error = "Error updating product: " . $conn->error;
             }
+            $stmt->close();
         } else {
             $error = implode("<br>", $errors);
         }
@@ -98,72 +108,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title><?= $is_bulk ? 'Bulk Stock Update' : 'Edit Product' ?> - Harotey Admin</title>
     <link rel="stylesheet" href="../assets/style.css">
     <style>
-        .form-container {
-            max-width: <?= $is_bulk ? '800px' : '600px' ?>;
-            margin: 0 auto;
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
-        }
-        .form-group input[type="text"],
-        .form-group input[type="number"],
-        .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-        .form-group textarea {
-            height: 120px;
-            resize: vertical;
-        }
-        .error-message {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-        .price-input {
-            position: relative;
-        }
-        .price-input:before {
-            content: "$";
-            position: absolute;
-            left: 10px;
-            top: 11px;
-            color: #666;
-        }
-        .price-input input {
-            padding-left: 25px !important;
-        }
-        .product-row {
-            background: #f8f9fa;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 4px;
-            border-left: 4px solid #28a745;
-        }
-        .product-name {
-            font-weight: bold;
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-        .current-stock {
-            color: #666;
-            margin-bottom: 10px;
-        }
+        .form-container { max-width: <?= $is_bulk ? '800px' : '600px' ?>; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
+        .form-group input[type="text"], .form-group input[type="number"], .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        .form-group textarea { height: 120px; resize: vertical; }
+        .error-message { background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+        .price-input { position: relative; }
+        .price-input:before { content: "$"; position: absolute; left: 10px; top: 11px; color: #666; }
+        .price-input input { padding-left: 25px !important; }
+        .product-row { background: #f8f9fa; padding: 15px; margin-bottom: 15px; border-radius: 4px; border-left: 4px solid #28a745; }
+        .product-name { font-weight: bold; margin-bottom: 10px; font-size: 16px; }
+        .current-stock { color: #666; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -181,8 +137,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <?php if ($is_bulk): ?>
-                <!-- Bulk Stock Update Form -->
-                <form method="POST" action="">
+                <!-- ---------- BULK STOCK UPDATE FORM ---------- -->
+                <form method="POST">
                     <h3 style="margin-top: 0; margin-bottom: 20px;">Update Stock for <?= count($product_ids) ?> Products</h3>
                     
                     <?php while ($product = $products->fetch_assoc()): ?>
@@ -192,13 +148,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <span style="color: #666; font-weight: normal;">(ID: #<?= $product['id'] ?>)</span>
                             </div>
                             <div class="current-stock">
-                                Current Stock: <strong><?= $product['stock'] ?></strong>
+                                Current Stock: <strong><?= $product['stock_quantity'] ?></strong>
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label for="stock_<?= $product['id'] ?>">New Stock Quantity</label>
                                 <input type="number" id="stock_<?= $product['id'] ?>" 
-                                       name="stock[<?= $product['id'] ?>]" 
-                                       min="0" value="<?= $product['stock'] ?>" required>
+                                       name="stock_quantity[<?= $product['id'] ?>]" 
+                                       min="0" value="<?= $product['stock_quantity'] ?>" required>
                             </div>
                         </div>
                     <?php endwhile; ?>
@@ -210,8 +166,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </form>
 
             <?php else: ?>
-                <!-- Single Product Edit Form -->
-                <form method="POST" action="">
+                <!-- ---------- SINGLE PRODUCT EDIT FORM ---------- -->
+                <form method="POST">
                     <input type="hidden" name="product_id" value="<?= $product['id'] ?>">
                     
                     <div class="form-group">
@@ -224,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <div class="form-group">
                         <label for="description">Description</label>
                         <textarea id="description" name="description" 
-                                  placeholder="Enter product description"><?= htmlspecialchars($product['description']) ?></textarea>
+                                  placeholder="Enter product description"><?= htmlspecialchars($product['description'] ?? '') ?></textarea>
                     </div>
 
                     <div class="form-group">
@@ -237,9 +193,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
 
                     <div class="form-group">
-                        <label for="stock">Stock Quantity *</label>
-                        <input type="number" id="stock" name="stock" min="0" required
-                               value="<?= $product['stock'] ?>"
+                        <label for="stock_quantity">Stock Quantity *</label>
+                        <input type="number" id="stock_quantity" name="stock_quantity" min="0" required
+                               value="<?= $product['stock_quantity'] ?>"
                                placeholder="Enter quantity">
                     </div>
 
