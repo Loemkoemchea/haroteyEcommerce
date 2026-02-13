@@ -481,7 +481,7 @@ $avatar_initial = strtoupper(substr($user['full_name'] ?? $user['username'], 0, 
                 </div>
                 <div class="stat-card">
                     <h3>Total Spent</h3>
-                    <div class="stat-number">৳<?= number_format($stats['total_spent'], 2) ?></div>
+                    <div class="stat-number">$<?= number_format($stats['total_spent'], 2) ?></div>
                     <div class="stat-label">Lifetime purchase</div>
                 </div>
                 <div class="stat-card">
@@ -522,7 +522,7 @@ $avatar_initial = strtoupper(substr($user['full_name'] ?? $user['username'], 0, 
                                 <tr>
                                     <td>#<?= $order['id'] ?></td>
                                     <td><?= date('M d, Y', strtotime($order['created_at'])) ?></td>
-                                    <td><strong>৳<?= number_format($order['total_amount'], 2) ?></strong></td>
+                                    <td><strong>$<?= number_format($order['total_amount'], 2) ?></strong></td>
                                     <td>
                                         <span class="status-badge status-<?= $order['status'] ?>">
                                             <?= ucfirst($order['status']) ?>
@@ -562,7 +562,7 @@ $avatar_initial = strtoupper(substr($user['full_name'] ?? $user['username'], 0, 
                         <?php while ($product = $recommended_products->fetch_assoc()): ?>
                             <div class="product-card">
                                 <div class="product-title"><?= htmlspecialchars($product['name']) ?></div>
-                                <div class="product-price">৳<?= number_format($product['price'], 2) ?></div>
+                                <div class="product-price">$<?= number_format($product['price'], 2) ?></div>
                                 <a href="../cart.php?add=<?= $product['id'] ?>" class="btn-add">Add to Cart</a>
                             </div>
                         <?php endwhile; ?>

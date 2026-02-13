@@ -262,9 +262,9 @@ $history_stmt->close();
                             </div>
                         </div>
                     </td>
-                    <td>৳<?= number_format($item['unit_price'], 2) ?></td>
+                    <td>$<?= number_format($item['unit_price'], 2) ?></td>
                     <td><?= $item['quantity'] ?></td>
-                    <td>৳<?= number_format($item_subtotal, 2) ?></td>
+                    <td>$<?= number_format($item_subtotal, 2) ?></td>
                     <td>
                         <?php if ($order['status'] === 'completed'): ?>
                             <?php
@@ -298,15 +298,15 @@ $history_stmt->close();
         <div class="total-section">
             <div class="total-row" style="margin-bottom: 10px;">
                 <span>Subtotal:</span>
-                <span style="width: 120px; text-align: right;">৳<?= number_format($subtotal, 2) ?></span>
+                <span style="width: 120px; text-align: right;">$<?= number_format($subtotal, 2) ?></span>
             </div>
             <div class="total-row" style="margin-bottom: 10px;">
                 <span>Shipping:</span>
-                <span style="width: 120px; text-align: right;">৳<?= number_format($order['shipping_amount'] ?? 0, 2) ?></span>
+                <span style="width: 120px; text-align: right;">$<?= number_format($order['shipping_amount'] ?? 0, 2) ?></span>
             </div>
             <div class="total-row" style="font-size: 20px; border-top: 2px solid #f0f0f0; padding-top: 15px;">
                 <span><strong>Total:</strong></span>
-                <span class="total-amount">৳<?= number_format($order['total_amount'], 2) ?></span>
+                <span class="total-amount">$<?= number_format($order['total_amount'], 2) ?></span>
             </div>
         </div>
 
