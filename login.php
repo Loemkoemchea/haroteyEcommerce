@@ -235,7 +235,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
 
         <div class="register-link">
-            Don't have an account? <a href="register.php">Create one now</a>
+            Don't have an account? <a href="./user/register.php">Create one now</a>
         </div>
         <a href="index.php" class="back-link">← Continue Shopping</a>
     </div>
