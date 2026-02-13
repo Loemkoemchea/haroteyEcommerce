@@ -3,10 +3,11 @@ session_start();
 include 'db.php';
 
 // =============================================
-// 1. ADD TO CART (via GET ?add=product_id)
+// ADD TO CART – with quantity support
 // =============================================
 if (isset($_GET['add'])) {
     $product_id = (int)$_GET['add'];
+    $quantity = isset($_GET['quantity']) ? (int)$_GET['quantity'] : 1;
 
     // Verify product exists and is active
     $stmt = $conn->prepare("SELECT id, stock_quantity FROM products WHERE id = ? AND is_active = 1");
@@ -21,7 +22,8 @@ if (isset($_GET['add'])) {
         if (!isset($_SESSION['cart'][$product_id])) {
             $_SESSION['cart'][$product_id] = 0;
         }
-        $_SESSION['cart'][$product_id] += 1;
+        // ✅ Add the requested quantity (not just 1)
+        $_SESSION['cart'][$product_id] += $quantity;
 
         // Cap at available stock
         if ($_SESSION['cart'][$product_id] > $product['stock_quantity']) {
@@ -435,7 +437,7 @@ unset($_SESSION['warning']);
                                         </div>
                                     </div>
                                 </td>
-                                <td><strong>৳<?= number_format($item['price'], 2) ?></strong></td>
+                                <td><strong>$<?= number_format($item['price'], 2) ?></strong></td>
                                 <td>
                                     <input type="number" name="quantity[<?= $item['id'] ?>]" 
                                            value="<?= $item['cart_quantity'] ?>" 
@@ -443,7 +445,7 @@ unset($_SESSION['warning']);
                                            class="quantity-input"
                                            <?= $item['stock_quantity'] == 0 ? 'disabled' : '' ?>>
                                 </td>
-                                <td><strong>৳<?= number_format($item['price'] * $item['cart_quantity'], 2) ?></strong></td>
+                                <td><strong>$<?= number_format($item['price'] * $item['cart_quantity'], 2) ?></strong></td>
                                 <td>
                                     <a href="?remove=<?= $item['id'] ?>" class="remove-link" onclick="return confirm('Remove this item from cart?')">
                                         🗑️ Remove
@@ -457,7 +459,7 @@ unset($_SESSION['warning']);
                 <div class="cart-footer">
                     <div class="cart-total">
                         <span style="font-size: 18px; color: #333;">Total:</span>
-                        <span class="total-amount">৳<?= number_format($total, 2) ?></span>
+                        <span class="total-amount">$<?= number_format($total, 2) ?></span>
                     </div>
                     <div class="cart-actions">
                         <button type="submit" name="update" class="btn btn-update">

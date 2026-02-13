@@ -605,6 +605,117 @@ if (!empty($product['specification'])) {
                 gap: 20px;
             }
         }
+        /* ===== Product Page Buttons & Quantity ===== */
+.quantity-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.quantity-wrapper label {
+    font-weight: 600;
+    color: #333;
+}
+.quantity-selector {
+    display: flex;
+    align-items: center;
+    border: 1px solid #ddd;
+    border-radius: 30px;
+    overflow: hidden;
+}
+.quantity-btn {
+    width: 40px;
+    height: 40px;
+    background: #f8f9fa;
+    border: none;
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.quantity-btn:hover {
+    background: #e9ecef;
+}
+.quantity-input {
+    width: 60px;
+    height: 40px;
+    border: none;
+    border-left: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 600;
+}
+.stock-badge {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 30px;
+    font-size: 14px;
+    font-weight: 600;
+}
+.in-stock {
+    background: #d4edda;
+    color: #155724;
+}
+.out-of-stock {
+    background: #f8d7da;
+    color: #721c24;
+}
+.btn-add-to-cart {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #28a745;
+    color: white;
+    border: none;
+    border-radius: 30px;
+    padding: 14px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    width: 100%;
+    max-width: 300px;
+}
+.btn-add-to-cart:hover {
+    background: #218838;
+}
+.btn-add-to-cart:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+.btn-wishlist {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: white;
+    color: #dc3545;
+    border: 2px solid #dc3545;
+    border-radius: 30px;
+    padding: 12px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    text-decoration: none;
+    margin-top: 15px;
+    transition: all 0.2s;
+    width: 100%;
+    max-width: 300px;
+}
+.btn-wishlist:hover {
+    background: #dc3545;
+    color: white;
+}
+.out-of-stock-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+}
     </style>
 </head>
 <body>
@@ -736,26 +847,37 @@ if (!empty($product['specification'])) {
                 <?php endif; ?>
 
                 <!-- Add to Cart & Wishlist -->
+                <!-- Add to Cart Section -->
                 <?php if ($product['stock_quantity'] > 0): ?>
-                    <form action="cart.php" method="get" class="add-to-cart-section">
+                    <form action="cart.php" method="get" class="add-to-cart-form">
                         <input type="hidden" name="add" value="<?= $product['id'] ?>">
-                        <div class="quantity-selector">
-                            <button type="button" class="quantity-btn" onclick="decrementQuantity()">−</button>
-                            <input type="number" id="quantity" name="quantity" class="quantity-input" value="1" min="1" max="<?= $product['stock_quantity'] ?>" readonly>
-                            <button type="button" class="quantity-btn" onclick="incrementQuantity(<?= $product['stock_quantity'] ?>)">+</button>
+                        
+                        <div class="quantity-wrapper">
+                            <label for="quantity">Qty:</label>
+                            <div class="quantity-selector">
+                                <button type="button" class="quantity-btn" onclick="decrementQuantity()">−</button>
+                                <input type="number" id="quantity" name="quantity" class="quantity-input" 
+                                    value="1" min="1" max="<?= $product['stock_quantity'] ?>" readonly>
+                                <button type="button" class="quantity-btn" onclick="incrementQuantity(<?= $product['stock_quantity'] ?>)">+</button>
+                            </div>
+                            <span class="stock-badge in-stock">✅ <?= $product['stock_quantity'] ?> in stock</span>
                         </div>
+
                         <button type="submit" class="btn-add-to-cart">
                             🛒 Add to Cart
                         </button>
                     </form>
                 <?php else: ?>
-                    <button class="btn-add-to-cart" disabled>Out of Stock</button>
+                    <div class="out-of-stock-wrapper">
+                        <span class="stock-badge out-of-stock">❌ Out of Stock</span>
+                        <button class="btn-add-to-cart" disabled>Out of Stock</button>
+                    </div>
                 <?php endif; ?>
 
-                <!-- Wishlist Button (only if logged in) -->
+                <!-- Wishlist Button (optional, for logged-in users) -->
                 <?php if (isset($_SESSION['user_id'])): ?>
                     <a href="user/wishlist.php?add=<?= $product['id'] ?>" class="btn-wishlist" onclick="return confirm('Add to wishlist?')">
-                        ❤️
+                        ❤️ Wishlist
                     </a>
                 <?php endif; ?>
 
@@ -945,16 +1067,12 @@ if (!empty($product['specification'])) {
         function incrementQuantity(max) {
             let input = document.getElementById('quantity');
             let value = parseInt(input.value);
-            if (value < max) {
-                input.value = value + 1;
-            }
+            if (value < max) input.value = value + 1;
         }
         function decrementQuantity() {
             let input = document.getElementById('quantity');
             let value = parseInt(input.value);
-            if (value > 1) {
-                input.value = value - 1;
-            }
+            if (value > 1) input.value = value - 1;
         }
 
         // Update cart link to include quantity
