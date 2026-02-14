@@ -86,6 +86,7 @@ $out_of_stock = $conn->query("
             <a href="add_product.php">+ Add Product</a>
             <a href="settings.php">Settings</a>
             <a href="../index.php" target="_blank">View Shop</a>
+            <a href="reports.php">Reports</a>
         </div>
 
         <!-- Statistics Cards -->
@@ -216,6 +217,7 @@ $out_of_stock = $conn->query("
                         </span>
                     <?php endif; ?>
                 </a>
+                <a href="reports.php" class="btn" style="background: #17a2b8;">📊 Sales Reports</a>
                 <a href="../index.php" class="btn" style="background: #6c757d;" target="_blank">🛒 Visit Shop</a>
             </div>
         </div>

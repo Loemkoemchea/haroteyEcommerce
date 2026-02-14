@@ -436,6 +436,11 @@ foreach ($_SESSION['cart'] as $pid => $qty) {
                         <input type="radio" name="payment_method" value="nagad">
                         Nagad
                     </label>
+                    <label class="payment-option">
+                        <input type="radio" name="payment_method" value="bakong_khqr">
+                        <span style="font-weight: 600;">🇰🇭 Bakong KHQR (Scan with Bakong/ABA)</span>
+                        <span style="margin-left: auto; color: #666; font-size: 14px;">Scan & Pay</span>
+                    </label>
                         
                     </div>
                 </div>

@@ -34,11 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_profile'])) {
                 throw new Exception("Only JPG, JPEG, PNG, GIF, WEBP files are allowed.");
             }
 
-            // Validate file size (max 2MB)
-            if ($file['size'] > 2 * 1024 * 1024) {
-                throw new Exception("File size must be less than 2MB.");
-            }
-
             // Create upload directory if not exists
             $upload_dir = '../uploads/profiles/';
             if (!file_exists($upload_dir)) {

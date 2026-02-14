@@ -1,5 +1,5 @@
 <?php
-// file: order.php – LOGIN REQUIRED + TELEGRAM NOTIFICATION
+// file: order.php – LOGIN REQUIRED + KHQR + TELEGRAM NOTIFICATION
 session_start();
 include 'db.php';
 
@@ -28,7 +28,6 @@ $use_saved = isset($_POST['use_saved_address']) && $_POST['use_saved_address'] =
 $shipping_address = '';
 
 if ($use_saved && isset($_POST['address_id'])) {
-    // Use selected saved address
     $addr_id = (int)$_POST['address_id'];
     $stmt = $conn->prepare("SELECT * FROM user_addresses WHERE id = ? AND user_id = ?");
     $stmt->bind_param("ii", $addr_id, $user_id);
@@ -41,12 +40,10 @@ if ($use_saved && isset($_POST['address_id'])) {
         $shipping_address .= ', ' . $addr['city'];
         if (!empty($addr['postal_code'])) $shipping_address .= ' - ' . $addr['postal_code'];
         $shipping_address .= ', ' . $addr['country'];
-        // Override contact info with address book if provided
         if (!empty($addr['full_name'])) $customer_name = $addr['full_name'];
         if (!empty($addr['phone'])) $customer_phone = $addr['phone'];
     }
 } else {
-    // Build from manual form fields
     $line1   = trim($_POST['address_line1'] ?? '');
     $line2   = trim($_POST['address_line2'] ?? '');
     $city    = trim($_POST['city'] ?? '');
@@ -58,8 +55,6 @@ if ($use_saved && isset($_POST['address_id'])) {
     if (!empty($postal)) $shipping_address .= ' - ' . $postal;
     $shipping_address .= ', ' . $country;
 }
-
-// Use same address for billing
 $billing_address = $shipping_address;
 
 // ---------- 5. VERIFY STOCK & PREPARE ORDER ----------
@@ -95,27 +90,7 @@ try {
     $order_number = 'ORD-' . str_pad($next_id, 6, '0', STR_PAD_LEFT);
 
     // Insert order
-    // $stmt = $conn->prepare("
-    //     INSERT INTO orders (
-    //         user_id, order_number, customer_name, customer_email, customer_phone,
-    //         billing_address, shipping_address, subtotal, total_amount,
-    //         payment_method, customer_notes, status, payment_status
-    //     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'pending')
-    // ");
-    // $stmt->bind_param(
-    //     "isssssssdds",
-    //     $user_id, $order_number, $customer_name, $customer_email, $customer_phone,
-    //     $billing_address, $shipping_address, $total, $total,
-    //     $payment_method, $notes
-    // );
-    // $stmt->execute();
-    // $order_id = $stmt->insert_id;
-    // $stmt->close();
-
-    // ---------- INSERT ORDER WITH PAYMENT METHOD ----------
-    // ---------- INSERT ORDER WITH PAYMENT METHOD ----------
-    $payment_status = 'pending'; // ✅ store literal in variable
-
+    $payment_status = 'pending';
     $stmt = $conn->prepare("
         INSERT INTO orders (
             user_id, order_number, customer_name, customer_email, customer_phone,
@@ -124,7 +99,7 @@ try {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
     ");
     $stmt->bind_param(
-        "isssssssdsss", // 12 types: i, s x8, d x2, s x2 = total 12
+        "isssssssdsss",
         $user_id,
         $order_number,
         $customer_name,
@@ -135,7 +110,7 @@ try {
         $total,         // subtotal
         $total,         // total_amount
         $payment_method,
-        $payment_status, // ✅ now a variable, not a literal
+        $payment_status,
         $notes
     );
     $stmt->execute();
@@ -183,12 +158,10 @@ try {
     // ---------- 6. CLEAR CART ----------
     unset($_SESSION['cart']);
 
-    // ---------- 7. 📱 SEND TELEGRAM NOTIFICATION ----------
-    // Use your bot token and chat ID (REPLACE WITH YOUR OWN)
+    // ---------- 7. 📱 SEND TELEGRAM NOTIFICATION (order placed) ----------
     $botToken = "8581941364:AAGS9iL46AWJ3Bfa0TVPnn9RrLNihJ8eubY";
     $chatID   = "1299806559";
 
-    // Build message
     $message  = "🛒 *NEW ORDER #{$order_id}*\n";
     $message .= "━━━━━━━━━━━━━━━\n";
     $message .= "👤 *Customer:* {$customer_name}\n";
@@ -205,7 +178,6 @@ try {
     $message .= "━━━━━━━━━━━━━━━\n";
     $message .= "💰 *TOTAL:* $" . number_format($total, 2);
 
-    // Send via cURL
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, "https://api.telegram.org/bot{$botToken}/sendMessage");
     curl_setopt($ch, CURLOPT_POST, true);
@@ -216,19 +188,30 @@ try {
     ]));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // remove in production if SSL is proper
-
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
     $response = curl_exec($ch);
     if (curl_errno($ch)) {
         error_log("Telegram error: " . curl_error($ch));
     }
     curl_close($ch);
 
-    // ---------- 8. REDIRECT TO CONFIRMATION ----------
-    // Set a success message to show on the orders page
-    $_SESSION['success'] = "Your order #{$order_id} has been placed successfully!";
-    header("Location: user/orders.php");
+    // ---------- 8. REDIRECT BASED ON PAYMENT METHOD ----------
+    // After order is created successfully (around line where you clear cart)
+    if ($payment_method === 'bakong_khqr') {
+    $_SESSION['bakong_pending'] = [
+        'order_id' => $order_id,
+        'amount' => $total,          // order total in USD
+        'customer_name' => $customer_name,
+        'customer_phone' => $customer_phone
+    ];
+    header("Location: bakong_payment.php");
     exit;
+} else {
+        // For other methods, go to orders list with success message
+        $_SESSION['success'] = "Your order #{$order_id} has been placed successfully!";
+        header("Location: user/orders.php");
+        exit;
+    }
 
 } catch (Exception $e) {
     $conn->rollback();
